@@ -399,6 +399,7 @@ enrichPlot <- function(results, top = 15, ncol = 3, title = NULL,
 #' See [here](https://jokergoo.github.io/ComplexHeatmap-reference/book/heatmap-annotations.html#simple-annotation)
 #' @param row_col A list specifying the colors in the rows.
 #' See [here](https://jokergoo.github.io/ComplexHeatmap-reference/book/heatmap-annotations.html#simple-annotation)
+#' @param genes_label A character vector indicating a selected list of genes to show on the rownames
 #' @param ... other arguments for `ComplexHeatmap::Heatmap`
 #' @return A Heatmap-class object.
 #' @export
@@ -413,91 +414,118 @@ enrichPlot <- function(results, top = 15, ncol = 3, title = NULL,
 #' cell_attributes='cluster', col_gap = 'cluster', column_title_rot = 90)
 #' @author Xiaosai Yao
 
+
+
 plotHeatmapRegulon <- function(sce,
-    tfs, regulon, regulon_column = "weight",
-    regulon_cutoff = 0.1,
-    downsample = 1000,
-    scale = TRUE,
-    center = TRUE,
-    color_breaks = c(-2,
-        0, 2),
-    colors = c("blue","white", "red"),
-    cell_attributes, col_gap = NULL,
-    exprs_values = "logcounts",
-    use_raster = TRUE,
-    raster_quality = 10,
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
-    border = TRUE, show_column_names = FALSE,
-    column_col = NULL,
-    row_col = NULL, ...) {
-
-    downsample_seq <- seq(from = 1,
-        to = ncol(sce),
-        by = floor(max(1,
-            ncol(sce)/downsample)))
-
-    # keep only targets belonging to TFs and meeting cutoff
-    if (is.matrix(regulon[[regulon_column]])) {
-
-        regulon <- regulon[which(regulon$tf %in% tfs &
-                             apply(regulon[[regulon_column]], 1,
-                                   function(x) any(x > regulon_cutoff))), ]
-
-    } else {
-        regulon <- regulon[regulon$tf %in% tfs &
-                             regulon[,regulon_column] > regulon_cutoff, ,drop=FALSE]
-    }
-
-    regulon.split <- S4Vectors::split(regulon, f <- regulon$tf)
-
-    # remove duplicated genes from each tf
-    regulon.split <- lapply(regulon.split, function(x) x[!duplicated(x$target), ])
-
-    regulon <- do.call(rbind, as.list(regulon.split))
-
-    # remove targets not found in sce
-    regulon <- regulon[regulon$target %in% rownames(sce),]
-    targets <- regulon$target
-
-    sce <- sce[targets, downsample_seq]
-
-
-    right_annotation <- data.frame(tf = regulon$tf)
-    top_annotation <- data.frame(colData(sce)[cell_attributes])
-
-    if (!is.null(col_gap)) {
-        column_split <- top_annotation[col_gap]
-    } else {
-        column_split <- NULL
-    }
-
-
-
-    mat <- as.matrix(SummarizedExperiment::assay(sce,
-        exprs_values))
-    mat <- t(scale(t(mat),
-        scale = scale,
-        center = center))
-
-    col_fun <- circlize::colorRamp2(color_breaks,
-        colors)
-
+                               tfs, regulon, regulon_column = "weight",
+                               regulon_cutoff = 0.1,
+                               downsample = 1000,
+                               scale = TRUE,
+                               center = TRUE,
+                               color_breaks = c(-2,
+                                                0, 2),
+                               colors = c("blue","white", "red"),
+                               cell_attributes, col_gap = NULL,
+                               exprs_values = "logcounts",
+                               use_raster = TRUE,
+                               raster_quality = 10,
+                               cluster_rows = FALSE,
+                               cluster_columns = FALSE,
+                               border = TRUE, show_column_names = FALSE,
+                               column_col = NULL,
+                               row_col = NULL,
+                               genes_label = NULL,...) {
+  
+  downsample_seq <- seq(from = 1,
+                        to = ncol(sce),
+                        by = floor(max(1,
+                                       ncol(sce)/downsample)))
+  
+  # keep only targets belonging to TFs and meeting cutoff
+  if (is.matrix(regulon[[regulon_column]])) {
+    
+    regulon <- regulon[which(regulon$tf %in% tfs &
+                               apply(regulon[[regulon_column]], 1,
+                                     function(x) any(x > regulon_cutoff))), ]
+    
+  } else {
+    regulon <- regulon[regulon$tf %in% tfs &
+                         regulon[,regulon_column] > regulon_cutoff, ,drop=FALSE]
+  }
+  
+  regulon.split <- S4Vectors::split(regulon, f <- regulon$tf)
+  
+  # remove duplicated genes from each tf
+  regulon.split <- lapply(regulon.split, function(x) x[!duplicated(x$target), ])
+  
+  regulon <- do.call(rbind, as.list(regulon.split))
+  
+  # remove targets not found in sce
+  regulon <- regulon[regulon$target %in% rownames(sce),]
+  targets <- regulon$target
+  
+  sce <- sce[targets, downsample_seq]
+  
+  
+  right_annotation <- data.frame(tf = regulon$tf)
+  top_annotation <- data.frame(colData(sce)[cell_attributes])
+  
+  if (!is.null(col_gap)) {
+    column_split <- top_annotation[col_gap]
+  } else {
+    column_split <- NULL
+  }
+  
+  
+  
+  mat <- as.matrix(SummarizedExperiment::assay(sce,
+                                               exprs_values))
+  mat <- t(scale(t(mat),
+                 scale = scale,
+                 center = center))
+  
+  col_fun <- circlize::colorRamp2(color_breaks,
+                                  colors)
+  if (!is.null(genes_label)){
+    
+    indexmatch <- match(genes_label, rownames(mat))
+    
     ComplexHeatmap::Heatmap(mat,
-        col = col_fun,
-        top_annotation = ComplexHeatmap::HeatmapAnnotation(df = top_annotation,
-            col = column_col),
-        right_annotation = ComplexHeatmap::rowAnnotation(df = right_annotation,
-            col = row_col),
-        row_split = right_annotation,
-        column_split = column_split,
-        use_raster = use_raster,
-        raster_quality = raster_quality,
-        cluster_rows = cluster_rows,
-        cluster_columns = cluster_columns,
-        border = border,
-        show_column_names = show_column_names,
-        ...)
+                            col = col_fun,
+                            top_annotation = ComplexHeatmap::HeatmapAnnotation(df = top_annotation,
+                                                                               col = column_col),
+                            right_annotation = ComplexHeatmap::rowAnnotation(df = right_annotation,
+                                                                             col = row_col,
+                                                                             foo = ComplexHeatmap::anno_mark(at = stats::na.omit(indexmatch),
+                                                                                                             labels = rownames(mat)[na.omit(indexmatch)])),
+                            row_split = right_annotation,
+                            column_split = column_split,
+                            use_raster = use_raster,
+                            raster_quality = raster_quality,
+                            cluster_rows = cluster_rows,
+                            cluster_columns = cluster_columns,
+                            border = border,
+                            show_column_names = show_column_names,
+                            ...)
+    
+  } else {
+    ComplexHeatmap::Heatmap(mat,
+                            col = col_fun,
+                            top_annotation = ComplexHeatmap::HeatmapAnnotation(df = top_annotation,
+                                                                               col = column_col),
+                            right_annotation = ComplexHeatmap::rowAnnotation(df = right_annotation,
+                                                                             col = row_col),
+                            row_split = right_annotation,
+                            column_split = column_split,
+                            use_raster = use_raster,
+                            raster_quality = raster_quality,
+                            cluster_rows = cluster_rows,
+                            cluster_columns = cluster_columns,
+                            border = border,
+                            show_column_names = show_column_names,
+                            ...)
+  }
+  
 }
 
 #' Plot transcription factor activity

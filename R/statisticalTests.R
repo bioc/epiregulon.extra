@@ -6,6 +6,9 @@
 #' @param test.type String indicating the type of statistical tests to be passed to scran::findMarkers, can be "t", "wilcox". or "binom"
 #' @param pval.type A string specifying how p-values are to be combined across pairwise comparisons for a given group/cluster.
 #' @param direction A string specifying direction of differential TF activity, can be "any", "up" or "down"
+#' @param logvalues logical indicating whether activities are computed from logged gene expression or not. 
+#' If activity is computed from linear values of gene expression, setting logvalues to FALSE will return the log fold changes and the difference.
+#' If activity is computed from logged values of gene expression, setting logvalues to TRUE will retrun the log changes.
 #' @param ... Further arguments to pass to scran::findMarkers
 #'
 #' @return A named list of dataframes containing differential TF activity test results for each cluster/group
@@ -35,6 +38,7 @@ findDifferentialActivity <- function(activity_matrix,
                                      pval.type = "some",
                                      direction = c("any","up","down"),
                                      groups = deprecated(),
+                                     logvalues = TRUE,
                                      ...){
 
   if(lifecycle::is_present(groups)){
@@ -47,6 +51,29 @@ findDifferentialActivity <- function(activity_matrix,
   activity_matrix <- stats::na.omit(as.matrix(activity_matrix))
   tf_markers <- scran::findMarkers(activity_matrix, clusters, test.type=test.type,
                                    pval.type=pval.type, direction=direction, ...)
+  
+  
+  if (!isTRUE(logvalues)){
+    
+    for (cluster in unique(clusters)) {
+      
+      # replace logFC with diff
+      colnames(tf_markers[[cluster]]) <- gsub("logFC", "diff", colnames(tf_markers[[cluster]]))
+      
+      # calculate logFC
+      current <- rowMeans(activity_matrix[, which(clusters == cluster)])
+      rest <- rowMeans(activity_matrix[, which(clusters != cluster)])
+      summary.logFC <- log2(current/rest)
+      tf_markers[[cluster]][,"summary.logFC"] <- summary.logFC
+      
+      # loop through all other comparisons
+      for (othercluster in setdiff(unique(clusters), cluster)){
+        othercluster.mean <- rowMeans(activity_matrix[, which(clusters == othercluster)])
+        othercluster.logFC <- log2(current/othercluster.mean)
+        tf_markers[[cluster]][,paste0("logFC.", make.names(othercluster))] <- othercluster.logFC
+      }
+    }
+  }
   return(tf_markers)
 
 }
@@ -87,7 +114,9 @@ getSigGenes <- function(da_list,
 
   top.list <- lapply(seq_along(da_list), function(i){
     da_genes <- as.data.frame(da_list[[i]])
-    da_genes <- da_genes[,c("p.value","FDR","summary.logFC")]
+    p.value.name <- colnames(da_genes)[grep("p.value", colnames(da_genes))]
+    FDR.name <- colnames(da_genes)[grep("FDR", colnames(da_genes))]
+    da_genes <- da_genes[,c(p.value.name, FDR.name,"summary.logFC")]
 
     if (is.null(logFC_cutoff)){
 
@@ -103,9 +132,9 @@ getSigGenes <- function(da_list,
     message ("Using a logFC cutoff of ", logFC_cutoff, " for class ", classes[i], " for direction equal to ", direction)
 
     if (direction %in% c("up","down")) {
-      da_genes <- da_genes[which(da_genes[,"FDR"] < fdr_cutoff & da_genes[, 3]*direction_factor > logFC_cutoff), ]
+      da_genes <- da_genes[which(da_genes[,FDR.name] < fdr_cutoff & da_genes[, 3]*direction_factor > logFC_cutoff), ]
     } else {
-      da_genes <- da_genes[which(da_genes[,"FDR"] < fdr_cutoff & abs(da_genes[, 3]) > logFC_cutoff), ]
+      da_genes <- da_genes[which(da_genes[,FDR.name] < fdr_cutoff & abs(da_genes[, 3]) > logFC_cutoff), ]
     }
 
 
@@ -116,9 +145,9 @@ getSigGenes <- function(da_list,
 
     if (is.null(topgenes)){
 
-      da_genes <- da_genes[order(da_genes$FDR, -(da_genes[, 3])),]
+      da_genes <- da_genes[order(da_genes[,FDR.name], -(da_genes[, 3])),]
     } else {
-      da_genes <- da_genes[utils::head(order(da_genes$FDR, -(da_genes[, 3])), topgenes),]
+      da_genes <- da_genes[utils::head(order(da_genes[,FDR.name], -(da_genes[, 3])), topgenes),]
     }
 
 
