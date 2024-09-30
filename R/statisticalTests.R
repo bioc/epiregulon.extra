@@ -6,7 +6,7 @@
 #' @param test.type String indicating the type of statistical tests to be passed to scran::findMarkers, can be "t", "wilcox". or "binom"
 #' @param pval.type A string specifying how p-values are to be combined across pairwise comparisons for a given group/cluster.
 #' @param direction A string specifying direction of differential TF activity, can be "any", "up" or "down"
-#' @param logvalues logical indicating whether activities are computed from logged gene expression or not. 
+#' @param logvalues logical indicating whether activities are computed from logged gene expression or not.
 #' If activity is computed from linear values of gene expression, setting logvalues to FALSE will return the log fold changes and the difference.
 #' If activity is computed from logged values of gene expression, setting logvalues to TRUE will retrun the log changes.
 #' @param ... Further arguments to pass to scran::findMarkers
@@ -51,21 +51,21 @@ findDifferentialActivity <- function(activity_matrix,
   activity_matrix <- stats::na.omit(as.matrix(activity_matrix))
   tf_markers <- scran::findMarkers(activity_matrix, clusters, test.type=test.type,
                                    pval.type=pval.type, direction=direction, ...)
-  
-  
+
+
   if (!isTRUE(logvalues)){
-    
+
     for (cluster in unique(clusters)) {
-      
+
       # replace logFC with diff
       colnames(tf_markers[[cluster]]) <- gsub("logFC", "diff", colnames(tf_markers[[cluster]]))
-      
+
       # calculate logFC
       current <- rowMeans(activity_matrix[, which(clusters == cluster)])
       rest <- rowMeans(activity_matrix[, which(clusters != cluster)])
       summary.logFC <- log2(current/rest)
       tf_markers[[cluster]][,"summary.logFC"] <- summary.logFC
-      
+
       # loop through all other comparisons
       for (othercluster in setdiff(unique(clusters), cluster)){
         othercluster.mean <- rowMeans(activity_matrix[, which(clusters == othercluster)])
@@ -199,7 +199,7 @@ regulonEnrich_ <- function(TF, regulon, corr, corr_cutoff, genesets) {
 #' @param TF A character vector of TF names
 #' @param regulon A matrix of weighted regulon consisting of tf, targets, corr and weight
 #' @param weight String indicating the column name that should be used to filter target genes for geneset enrichment. Default is 'weight'.
-#' @param weight_cutoff A numeric scalar to indicate the cutoff to filter on the column specified by corr. Default is 0.5.
+#' @param weight_cutoff A numeric scalar to indicate the cutoff to filter on the column specified by `weight`. Default is 0.5.
 #' @param genesets A dataframe with the first column being the name of the geneset and the second column being the name of the genes
 #'
 #' @return A dataframe showing the significantly enriched pathways
