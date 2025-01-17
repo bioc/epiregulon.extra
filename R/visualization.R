@@ -199,7 +199,7 @@ plotActivityViolin <- function(activity_matrix, tf, clusters,
 #' @param tf A character vector indicating the names of the transcription factors to be plotted
 #' @param clusters A character or integer vector of cluster or group labels for single cells
 #' @param bubblesize String indicating the variable from findDifferentialActivity output to scale size of bubbles
-#' by either `FDR` or `summary.logFC`. Default is `FDR`.
+#' by either `log.FDR`, `summary.logFC` or `summary.diff`. Default is `logFDR`.
 #' @param color.theme String indicating the color theme used for the bubble plot and corresponding to the color options
 #' in `scale_color_viridis_c`
 #' @param legend.label String indicating the name of legend corresponding to the color scale
@@ -220,79 +220,87 @@ plotActivityViolin <- function(activity_matrix, tf, clusters,
 #' tf = c('Gene_0001','Gene_0002'),  clusters = example_sce$cluster)
 #' @author Shang-yang Chen
 plotBubble <- function(activity_matrix, tf, clusters,
-    bubblesize = c("FDR", "summary.logFC"), color.theme = "viridis",
-    legend.label = "relative_activity", x.label = "clusters",
-    y.label = "transcription factors", title = "TF activity",
-    ...) {
-
-    bubblesize <- match.arg(bubblesize)
-
-    # give warning for genes absent in tf list
-    missing <- tf[which(!tf %in% rownames(activity_matrix))]
-    if (!identical(missing, character(0))) {
-        message(missing, " not found in activity matrix. Excluded from plots")
-    }
-    tf <- tf[which(tf %in% rownames(activity_matrix))]
-
-    # find logFC and FDR of TFs
-    markers <- findDifferentialActivity(activity_matrix,
-        clusters, ...)
-    markers <- suppressMessages(getSigGenes(markers,
-        fdr_cutoff = 1.5, logFC_cutoff = -100))
-    markers <- markers[which(markers$tf %in% tf),
-        ]
-    levels <- make.names(unique(tf[tf %in% markers$tf]))
-    markers$tf <- make.names(markers$tf)
-    # rename markers
-    colnames(markers)[colnames(markers) == "class"] <- "clusters"
-
-
-    # z normalize activity and compute mean by cluster
-    tf.activity <- activity_matrix[tf, , drop = FALSE]
-    df <- data.frame(clusters = clusters, t(as.matrix(tf.activity)))
-    df.mean <- stats::aggregate(. ~ clusters, df,
-        mean)
-    zscores <- apply(df.mean[, -1], 2, scale)
-    df.mean <- data.frame(clusters = df.mean[, 1],
-        as.data.frame(zscores))
-    df.plot <- suppressMessages(reshape2::melt(df.mean,
-        id.variable = "clusters", variable.name = "tf",
-        value.name = "relative_activity"))
-
-    # merge logFC, FDR and mean activity
-    df.plot <- merge(df.plot, markers, by = c("tf",
-        "clusters"))
-    df.plot$tf <- factor(as.character(df.plot$tf),
-        levels = levels)
-
-    # generate bubble plots
-    if (bubblesize == "FDR") {
-        logpval <- -log10(df.plot$FDR)
-        max.logpval <- max(logpval[is.finite(logpval)])
-        logpval <- replace(logpval, is.infinite(logpval),
-            max.logpval)
-        g <- ggplot(df.plot, aes(clusters,
-            tf, color = relative_activity)) +
-            geom_point(stat = "identity", aes(size = logpval)) +
-            scale_color_viridis_c(option = color.theme) +
-            scale_size_continuous("-logpval", range = c(0,
-                7)) + theme_classic(base_size = 12) +
-            theme(axis.text.x = element_text(angle = 45,
-                hjust = 1)) + labs(color = legend.label) +
-            ylab(y.label) + xlab(x.label) + ylab(y.label) +
-            xlab(x.label) + ggtitle(title)
-    } else if (bubblesize == "summary.logFC") {
-        g <- ggplot(df.plot, aes(clusters,
-            tf, color = relative_activity)) +
-            geom_point(stat = "identity", aes(size = summary.logFC)) +
-            scale_color_viridis_c(option = color.theme) +
-            scale_size_continuous("summary logFC", range = c(0,
-                7)) + theme_classic(base_size = 12) +
-            theme(axis.text.x = element_text(angle = 45,
-                hjust = 1)) + labs(color = legend.label) +
-            ylab(y.label) + xlab(x.label) + ggtitle(title)
-    }
-    return(g)
+                       bubblesize = c("log.FDR", "summary.logFC","summary.diff"), 
+                       color.theme = "viridis",
+                       legend.label = "relative_activity", 
+                       x.label = "clusters",
+                       y.label = "transcription factors", 
+                       title = "TF activity",
+                       ...) {
+  
+  bubblesize <- match.arg(bubblesize)
+  
+  # give warning for genes absent in tf list
+  missing <- tf[which(!tf %in% rownames(activity_matrix))]
+  if (!identical(missing, character(0))) {
+    message(missing, " not found in activity matrix. Excluded from plots")
+  }
+  tf <- tf[which(tf %in% rownames(activity_matrix))]
+  
+  # find logFC and FDR of TFs
+  markers <- findDifferentialActivity(activity_matrix, clusters, log.p = TRUE, ...)
+  markers <- suppressMessages(getSigGenes(markers,
+                                          fdr_cutoff = 1.5, 
+                                          logFC_cutoff = -100))
+  markers <- markers[which(markers$tf %in% tf),]
+  levels <- make.names(unique(tf[tf %in% markers$tf]))
+  markers$tf <- make.names(markers$tf)
+  
+  # rename markers
+  colnames(markers)[colnames(markers) == "class"] <- "clusters"
+  
+  # z normalize activity and compute mean by cluster
+  tf.activity <- activity_matrix[tf, , drop = FALSE]
+  df <- data.frame(clusters = clusters, t(as.matrix(tf.activity)))
+  df.mean <- stats::aggregate(. ~ clusters, df, mean)
+  zscores <- apply(df.mean[, -1], 2, scale)
+  df.mean <- data.frame(clusters = df.mean[, 1],
+                        as.data.frame(zscores))
+  df.plot <- suppressMessages(reshape2::melt(df.mean,
+                                             id.variable = "clusters", 
+                                             variable.name = "tf",
+                                             value.name = "relative_activity"))
+  
+  # merge logFC, FDR and mean activity
+  df.plot <- merge(df.plot, markers, by = c("tf","clusters"))
+  df.plot$tf <- factor(as.character(df.plot$tf), levels = levels)
+  
+  # generate bubble plots
+  if (bubblesize == "log.FDR") {
+    g <- ggplot(df.plot, aes(clusters, tf, color = relative_activity)) +
+      geom_point(stat = "identity", aes(size = -log.FDR)) +
+      scale_color_viridis_c(option = color.theme) +
+      scale_size_continuous("-log.FDR", range = c(0, 7)) + 
+      theme_classic(base_size = 12) +
+      theme(axis.text.x = element_text(angle = 45,
+                                       hjust = 1)) + 
+      labs(color = legend.label) +
+      ylab(y.label) + xlab(x.label) + ylab(y.label) +
+      xlab(x.label) + ggtitle(title)
+    
+  } else if (bubblesize == "summary.logFC") {
+    g <- ggplot(df.plot, aes(clusters, tf, color = relative_activity)) +
+      geom_point(stat = "identity", aes(size = summary.logFC)) +
+      scale_color_viridis_c(option = color.theme) +
+      scale_size_continuous("summary logFC", range = c(0,7)) + 
+      theme_classic(base_size = 12) +
+      theme(axis.text.x = element_text(angle = 45,
+                                       hjust = 1)) + 
+      labs(color = legend.label) +
+      ylab(y.label) + xlab(x.label) + ggtitle(title)
+    
+  } else if (bubblesize == "summary.diff") {
+    g <- ggplot(df.plot, aes(clusters, tf, color = relative_activity)) +
+      geom_point(stat = "identity", aes(size = summary.diff)) +
+      scale_color_viridis_c(option = color.theme) +
+      scale_size_continuous("summary diff", range = c(0,7)) + 
+      theme_classic(base_size = 12) +
+      theme(axis.text.x = element_text(angle = 45,
+                                       hjust = 1)) + 
+      labs(color = legend.label) +
+      ylab(y.label) + xlab(x.label) + ggtitle(title)
+  }
+  return(g)
 }
 
 #' @importFrom ggplot2 ggplot aes scale_colour_gradient geom_point 

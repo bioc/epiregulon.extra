@@ -29,8 +29,8 @@ findDifferentialActivity(
 \item{groups}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} A character or integer vector of cluster or group labels for single cells}
 
 \item{logvalues}{logical indicating whether activities are computed from logged gene expression or not.
-If activity is computed from linear values of gene expression, setting logvalues to FALSE will return the log fold changes and the difference.
-If activity is computed from logged values of gene expression, setting logvalues to TRUE will retrun the log changes.}
+If activity is computed from linear values of gene expression, setting logvalues to FALSE will return the difference.
+If activity is computed from logged values of gene expression, setting logvalues to TRUE will return the log changes.}
 
 \item{...}{Further arguments to pass to scran::findMarkers}
 }
@@ -52,7 +52,7 @@ clusters = cluster,
 pval.type = "some",
 direction = "up",
 test.type = "t")
-sig.genes <- getSigGenes(markers, fdr_cutoff = 1, logFC_cutoff = 0.1)
+sig.genes <- getSigGenes(markers, fdr_cutoff = 1, summary_cutoff = 0.1)
 }
 \author{
 Xiaosai Yao, Shang-yang Chen
