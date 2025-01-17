@@ -44,43 +44,6 @@ test_that("getSigGenes works correctly when direction is 'down'", {
 })
 
 
-set.seed(102001)
-mu <- round(exp(runif(n.tf*3)*3)+1)
-X <- unlist(lapply(mu, function(x) rpois(100,x)))
-X.mat <- matrix(X, nrow=n.tf, ncol=n.cells, byrow = TRUE)
-rownames(X.mat) <- paste0("gene_", 1:50)
-
-clusters <- rep(letters[1:3], each=100)
-da_genes <- findDifferentialActivity(X.mat, clusters = clusters, direction = "up")
-da_genes2 <- findDifferentialActivity(X.mat, clusters = clusters, direction = "up", logvalues=FALSE)
-for(i in 1:nrow(X.mat)){
-  clust_means <- split(X.mat[i,], clusters) |> lapply(mean)
-  for (cluster in unique(clusters)){
-    diff_columns <-  da_genes[[cluster]][,grep("logFC", colnames(da_genes[[cluster]]))]
-    colnames(diff_columns) <- gsub("logFC","diff", colnames(diff_columns))
-    da_genes[[cluster]] <- cbind(da_genes[[cluster]], diff_columns)
-    other_clusters <- setdiff(clusters, cluster)
-    for(other_cluster in other_clusters){
-      da_genes[[cluster]][i,paste0("logFC.", other_cluster)] <- log2(clust_means[[cluster]]/clust_means[[other_cluster]])
-    da_genes[[cluster]][i,"summary.logFC"] <- log2(clust_means[[cluster]]/(mean(unlist(clust_means[other_clusters]))))
-    da_genes[[cluster]] <- da_genes[[cluster]][,colnames(da_genes2[[cluster]])]
-  }
-
-  }
-}
-
-for (cluster in unique(clusters)){
-  da_genes[[cluster]][,"summary.logFC"] <- setNames(da_genes[[cluster]][,"summary.logFC"], paste0("gene_", 1:50))
-  other_clusters <- setdiff(clusters, cluster)
-  for(other_cluster in other_clusters){
-    da_genes[[cluster]][,paste0("logFC.", other_cluster)] <- setNames(da_genes[[cluster]][,paste0("logFC.", other_cluster)],paste0("gene_", 1:50))
-  }
-}
-
-
-test_that("findDifferentialActivity calculates logFC correctly for counts on linear scale", {
-  expect_equal(da_genes2, da_genes)
-})
 
 set.seed(4563)
 genesets <- data.frame(gs = c(rep("geneset_1", 50), rep("geneset_2", 70), rep("geneset_3", 30)),

@@ -113,7 +113,7 @@
 #' graph_diff <- normalizeCentrality(graph_diff)
 #' tf_ranking <- rankTfs(graph_diff)
 #'
-#' @importFrom igraph V E graph_from_data_frame vcount delete_edges delete_vertices degree graph_from_adjacency_matrix as_adjacency_matrix V<- incident_edges strength list.edge.attributes list.vertex.attributes
+#' @importFrom igraph V E graph_from_data_frame vcount delete_edges delete_vertices degree graph_from_adjacency_matrix as_adjacency_matrix V<- incident_edges strength edge_attr_names list.vertex.attributes
 #' @export
 buildGraph <- function(regulon,
                        mode = c("tg", "tripartite", "re", "pairs"),
@@ -274,7 +274,7 @@ normalizeCentrality <- function(graph, FUN = sqrt, weighted = TRUE) {
   checkmate::assertClass(graph, "igraph")
   if (!"centrality" %in% list.vertex.attributes(graph))
     stop("Vertices do not have 'centrality' attribute")
-  if (!"weight" %in% list.edge.attributes(graph) & weighted)
+  if (!"weight" %in% edge_attr_names(graph) & weighted)
     stop("Set 'weight' attribute to edges or use with 'weighted = FALSE'")
 
   # calculate number of edges for each node

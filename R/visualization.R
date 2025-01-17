@@ -241,7 +241,7 @@ plotBubble <- function(activity_matrix, tf, clusters,
   markers <- findDifferentialActivity(activity_matrix, clusters, log.p = TRUE, ...)
   markers <- suppressMessages(getSigGenes(markers,
                                           fdr_cutoff = 1.5, 
-                                          logFC_cutoff = -100))
+                                          summary_cutoff = -100))
   markers <- markers[which(markers$tf %in% tf),]
   levels <- make.names(unique(tf[tf %in% markers$tf]))
   markers$tf <- make.names(markers$tf)
