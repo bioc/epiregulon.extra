@@ -51,15 +51,14 @@ findDifferentialActivity <- function(activity_matrix,
   activity_matrix <- stats::na.omit(as.matrix(activity_matrix))
   tf_markers <- scran::findMarkers(activity_matrix, clusters, test.type=test.type,
                                    pval.type=pval.type, direction=direction, ...)
-  
-  
+
+
   if (!isTRUE(logvalues)){
-    
+
     for (cluster in unique(clusters)) {
-      
+
       # replace logFC with diff
       colnames(tf_markers[[cluster]]) <- gsub("logFC", "diff", colnames(tf_markers[[cluster]]))
-      
     }
   }
   return(tf_markers)
@@ -191,7 +190,7 @@ regulonEnrich_ <- function(TF, regulon, corr, corr_cutoff, genesets) {
 #' @param TF A character vector of TF names
 #' @param regulon A matrix of weighted regulon consisting of tf, targets, corr and weight
 #' @param weight String indicating the column name that should be used to filter target genes for geneset enrichment. Default is 'weight'.
-#' @param weight_cutoff A numeric scalar to indicate the cutoff to filter on the column specified by corr. Default is 0.5.
+#' @param weight_cutoff A numeric scalar to indicate the cutoff to filter on the column specified by `weight`. Default is 0.5.
 #' @param genesets A dataframe with the first column being the name of the geneset and the second column being the name of the genes
 #'
 #' @return A dataframe showing the significantly enriched pathways
